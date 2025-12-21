@@ -1,14 +1,18 @@
 import { create } from 'zustand';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface FileItem {
   id: string;
   name: string;
+  original_name: string;
   type: 'image' | 'video' | 'document' | 'folder';
   size: string;
   uploadDate: string;
   thumbnail?: string;
   isStarred?: boolean;
   isDeleted?: boolean;
+  storage_path: string;
+  user_id: string;
 }
 
 interface FileStore {
@@ -17,150 +21,233 @@ interface FileStore {
   viewMode: 'grid' | 'list';
   currentFolder: string;
   searchQuery: string;
+  isLoading: boolean;
   setFiles: (files: FileItem[]) => void;
-  addFile: (file: FileItem) => void;
-  deleteFile: (id: string) => void;
-  restoreFile: (id: string) => void;
-  permanentlyDeleteFile: (id: string) => void;
-  renameFile: (id: string, newName: string) => void;
-  toggleStar: (id: string) => void;
+  fetchFiles: (userId: string) => Promise<void>;
+  uploadFile: (file: File, userId: string) => Promise<void>;
+  deleteFile: (id: string) => Promise<void>;
+  restoreFile: (id: string) => Promise<void>;
+  permanentlyDeleteFile: (id: string, storagePath: string) => Promise<void>;
+  renameFile: (id: string, newName: string) => Promise<void>;
+  toggleStar: (id: string, isStarred: boolean) => Promise<void>;
   selectFile: (id: string) => void;
   clearSelection: () => void;
   setViewMode: (mode: 'grid' | 'list') => void;
   setCurrentFolder: (folder: string) => void;
   setSearchQuery: (query: string) => void;
+  downloadFile: (storagePath: string, fileName: string) => Promise<void>;
 }
 
-const mockFiles: FileItem[] = [
-  {
-    id: '1',
-    name: 'Project Presentation.pdf',
-    type: 'document',
-    size: '2.4 MB',
-    uploadDate: '2024-01-15',
-    isStarred: true,
-  },
-  {
-    id: '2',
-    name: 'Team Photo.jpg',
-    type: 'image',
-    size: '1.8 MB',
-    uploadDate: '2024-01-14',
-    thumbnail: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=200&h=200&fit=crop',
-  },
-  {
-    id: '3',
-    name: 'Product Demo.mp4',
-    type: 'video',
-    size: '45.2 MB',
-    uploadDate: '2024-01-13',
-    thumbnail: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=200&h=200&fit=crop',
-  },
-  {
-    id: '4',
-    name: 'Financial Report Q4.xlsx',
-    type: 'document',
-    size: '856 KB',
-    uploadDate: '2024-01-12',
-  },
-  {
-    id: '5',
-    name: 'Brand Guidelines.pdf',
-    type: 'document',
-    size: '5.1 MB',
-    uploadDate: '2024-01-11',
-    isStarred: true,
-  },
-  {
-    id: '6',
-    name: 'Office Tour.mp4',
-    type: 'video',
-    size: '120.5 MB',
-    uploadDate: '2024-01-10',
-    thumbnail: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=200&h=200&fit=crop',
-  },
-  {
-    id: '7',
-    name: 'Product Mockup.png',
-    type: 'image',
-    size: '3.2 MB',
-    uploadDate: '2024-01-09',
-    thumbnail: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=200&h=200&fit=crop',
-  },
-  {
-    id: '8',
-    name: 'Meeting Notes.docx',
-    type: 'document',
-    size: '124 KB',
-    uploadDate: '2024-01-08',
-  },
-  {
-    id: '9',
-    name: 'Sunset Beach.jpg',
-    type: 'image',
-    size: '4.5 MB',
-    uploadDate: '2024-01-07',
-    thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=200&h=200&fit=crop',
-  },
-  {
-    id: '10',
-    name: 'Contract Template.pdf',
-    type: 'document',
-    size: '1.1 MB',
-    uploadDate: '2024-01-06',
-  },
-  {
-    id: '11',
-    name: 'Tutorial Video.mp4',
-    type: 'video',
-    size: '85.3 MB',
-    uploadDate: '2024-01-05',
-    thumbnail: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=200&h=200&fit=crop',
-  },
-  {
-    id: '12',
-    name: 'Logo Design.svg',
-    type: 'image',
-    size: '245 KB',
-    uploadDate: '2024-01-04',
-    thumbnail: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=200&h=200&fit=crop',
-  },
-];
+const getFileType = (mimeType: string): 'image' | 'video' | 'document' => {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  return 'document';
+};
 
-export const useFileStore = create<FileStore>((set) => ({
-  files: mockFiles,
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+export const useFileStore = create<FileStore>((set, get) => ({
+  files: [],
   selectedFiles: [],
   viewMode: 'grid',
   currentFolder: 'all',
   searchQuery: '',
+  isLoading: false,
+
   setFiles: (files) => set({ files }),
-  addFile: (file) => set((state) => ({ files: [file, ...state.files] })),
-  deleteFile: (id) =>
+
+  fetchFiles: async (userId: string) => {
+    set({ isLoading: true });
+    
+    const { data, error } = await supabase
+      .from('files')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching files:', error);
+      set({ isLoading: false });
+      return;
+    }
+
+    const files: FileItem[] = (data || []).map((file) => {
+      let thumbnail: string | undefined;
+      
+      if (getFileType(file.type) === 'image') {
+        const { data: urlData } = supabase.storage
+          .from('user-files')
+          .getPublicUrl(file.storage_path);
+        thumbnail = urlData.publicUrl;
+      }
+
+      return {
+        id: file.id,
+        name: file.name,
+        original_name: file.original_name,
+        type: getFileType(file.type),
+        size: formatFileSize(file.size),
+        uploadDate: new Date(file.created_at).toISOString().split('T')[0],
+        isStarred: file.is_starred,
+        isDeleted: file.is_deleted,
+        storage_path: file.storage_path,
+        user_id: file.user_id,
+        thumbnail,
+      };
+    });
+
+    set({ files, isLoading: false });
+  },
+
+  uploadFile: async (file: File, userId: string) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const storagePath = `${userId}/${fileName}`;
+
+    // Upload to storage
+    const { error: uploadError } = await supabase.storage
+      .from('user-files')
+      .upload(storagePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    // Create database record
+    const { error: dbError } = await supabase.from('files').insert({
+      user_id: userId,
+      name: file.name,
+      original_name: file.name,
+      size: file.size,
+      type: file.type,
+      storage_path: storagePath,
+    });
+
+    if (dbError) {
+      // Cleanup storage if db insert fails
+      await supabase.storage.from('user-files').remove([storagePath]);
+      throw dbError;
+    }
+
+    // Refresh files list
+    await get().fetchFiles(userId);
+  },
+
+  deleteFile: async (id: string) => {
+    const { error } = await supabase
+      .from('files')
+      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
     set((state) => ({
       files: state.files.map((f) => (f.id === id ? { ...f, isDeleted: true } : f)),
-    })),
-  restoreFile: (id) =>
+    }));
+  },
+
+  restoreFile: async (id: string) => {
+    const { error } = await supabase
+      .from('files')
+      .update({ is_deleted: false, deleted_at: null })
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
     set((state) => ({
       files: state.files.map((f) => (f.id === id ? { ...f, isDeleted: false } : f)),
-    })),
-  permanentlyDeleteFile: (id) =>
+    }));
+  },
+
+  permanentlyDeleteFile: async (id: string, storagePath: string) => {
+    // Delete from storage
+    const { error: storageError } = await supabase.storage
+      .from('user-files')
+      .remove([storagePath]);
+
+    if (storageError) {
+      console.error('Storage delete error:', storageError);
+    }
+
+    // Delete from database
+    const { error: dbError } = await supabase.from('files').delete().eq('id', id);
+
+    if (dbError) {
+      throw dbError;
+    }
+
     set((state) => ({
       files: state.files.filter((f) => f.id !== id),
-    })),
-  renameFile: (id, newName) =>
+    }));
+  },
+
+  renameFile: async (id: string, newName: string) => {
+    const { error } = await supabase
+      .from('files')
+      .update({ name: newName })
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
     set((state) => ({
       files: state.files.map((f) => (f.id === id ? { ...f, name: newName } : f)),
-    })),
-  toggleStar: (id) =>
+    }));
+  },
+
+  toggleStar: async (id: string, isStarred: boolean) => {
+    const { error } = await supabase
+      .from('files')
+      .update({ is_starred: !isStarred })
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
     set((state) => ({
-      files: state.files.map((f) => (f.id === id ? { ...f, isStarred: !f.isStarred } : f)),
-    })),
+      files: state.files.map((f) => (f.id === id ? { ...f, isStarred: !isStarred } : f)),
+    }));
+  },
+
+  downloadFile: async (storagePath: string, fileName: string) => {
+    const { data, error } = await supabase.storage
+      .from('user-files')
+      .download(storagePath);
+
+    if (error) {
+      throw error;
+    }
+
+    // Create download link
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
   selectFile: (id) =>
     set((state) => ({
       selectedFiles: state.selectedFiles.includes(id)
         ? state.selectedFiles.filter((fid) => fid !== id)
         : [...state.selectedFiles, id],
     })),
+
   clearSelection: () => set({ selectedFiles: [] }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setCurrentFolder: (folder) => set({ currentFolder: folder }),

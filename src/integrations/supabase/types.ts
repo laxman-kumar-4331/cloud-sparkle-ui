@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      files: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          is_deleted: boolean
+          is_starred: boolean
+          name: string
+          original_name: string
+          size: number
+          storage_path: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_starred?: boolean
+          name: string
+          original_name: string
+          size?: number
+          storage_path: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_starred?: boolean
+          name?: string
+          original_name?: string
+          size?: number
+          storage_path?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

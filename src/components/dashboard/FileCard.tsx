@@ -8,7 +8,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileCardProps {
@@ -18,7 +17,7 @@ interface FileCardProps {
 }
 
 const FileCard = ({ file, index, onRename }: FileCardProps) => {
-  const { deleteFile, toggleStar, restoreFile, permanentlyDeleteFile, currentFolder } = useFileStore();
+  const { deleteFile, toggleStar, restoreFile, permanentlyDeleteFile, downloadFile, currentFolder } = useFileStore();
   const { toast } = useToast();
   const isTrash = currentFolder === 'trash';
 
@@ -36,38 +35,55 @@ const FileCard = ({ file, index, onRename }: FileCardProps) => {
   const getIconColor = () => {
     switch (file.type) {
       case 'image':
-        return 'text-pink-500 bg-pink-50';
+        return 'text-pink-500 bg-pink-500/10';
       case 'video':
-        return 'text-purple-500 bg-purple-50';
+        return 'text-purple-500 bg-purple-500/10';
       default:
-        return 'text-primary bg-cloud-50';
+        return 'text-primary bg-primary/10';
     }
   };
 
   const Icon = getFileIcon();
 
-  const handleDelete = () => {
-    if (isTrash) {
-      permanentlyDeleteFile(file.id);
-      toast({ title: 'File permanently deleted' });
-    } else {
-      deleteFile(file.id);
-      toast({ title: 'Moved to trash', description: 'You can restore it from the trash folder' });
+  const handleDelete = async () => {
+    try {
+      if (isTrash) {
+        await permanentlyDeleteFile(file.id, file.storage_path);
+        toast({ title: 'File permanently deleted' });
+      } else {
+        await deleteFile(file.id);
+        toast({ title: 'Moved to trash', description: 'You can restore it from the trash folder' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete file', variant: 'destructive' });
     }
   };
 
-  const handleRestore = () => {
-    restoreFile(file.id);
-    toast({ title: 'File restored', description: 'The file has been restored to your files' });
+  const handleRestore = async () => {
+    try {
+      await restoreFile(file.id);
+      toast({ title: 'File restored', description: 'The file has been restored to your files' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to restore file', variant: 'destructive' });
+    }
   };
 
-  const handleDownload = () => {
-    toast({ title: 'Download started', description: `Downloading ${file.name}` });
+  const handleDownload = async () => {
+    try {
+      toast({ title: 'Download started', description: `Downloading ${file.name}` });
+      await downloadFile(file.storage_path, file.name);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to download file', variant: 'destructive' });
+    }
   };
 
-  const handleStar = () => {
-    toggleStar(file.id);
-    toast({ title: file.isStarred ? 'Removed from starred' : 'Added to starred' });
+  const handleStar = async () => {
+    try {
+      await toggleStar(file.id, file.isStarred || false);
+      toast({ title: file.isStarred ? 'Removed from starred' : 'Added to starred' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update star', variant: 'destructive' });
+    }
   };
 
   return (

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil } from 'lucide-react';
+import { X, Pencil, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FileItem, useFileStore } from '@/store/fileStore';
@@ -13,6 +13,7 @@ interface RenameModalProps {
 
 const RenameModal = ({ file, onClose }: RenameModalProps) => {
   const [newName, setNewName] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
   const { renameFile } = useFileStore();
   const { toast } = useToast();
 
@@ -22,11 +23,18 @@ const RenameModal = ({ file, onClose }: RenameModalProps) => {
     }
   }, [file]);
 
-  const handleRename = () => {
+  const handleRename = async () => {
     if (file && newName.trim()) {
-      renameFile(file.id, newName.trim());
-      toast({ title: 'File renamed', description: `File has been renamed to "${newName.trim()}"` });
-      onClose();
+      setIsRenaming(true);
+      try {
+        await renameFile(file.id, newName.trim());
+        toast({ title: 'File renamed', description: `File has been renamed to "${newName.trim()}"` });
+        onClose();
+      } catch (error) {
+        toast({ title: 'Error', description: 'Failed to rename file', variant: 'destructive' });
+      } finally {
+        setIsRenaming(false);
+      }
     }
   };
 
@@ -78,10 +86,17 @@ const RenameModal = ({ file, onClose }: RenameModalProps) => {
               </Button>
               <Button
                 onClick={handleRename}
-                disabled={!newName.trim() || newName === file.name}
+                disabled={!newName.trim() || newName === file.name || isRenaming}
                 className="gradient-primary text-primary-foreground"
               >
-                Rename
+                {isRenaming ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Renaming...
+                  </>
+                ) : (
+                  'Rename'
+                )}
               </Button>
             </div>
           </motion.div>
