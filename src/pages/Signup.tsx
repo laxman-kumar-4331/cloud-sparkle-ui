@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
@@ -13,30 +13,55 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signup } = useAuthStore();
+  const { signup, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      await signup(name, email, password);
+    if (password.length < 6) {
       toast({
-        title: 'Account created!',
-        description: 'Welcome to CloudVault. Redirecting to dashboard...',
-      });
-      setTimeout(() => navigate('/dashboard'), 1000);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Something went wrong. Please try again.',
+        title: 'Password too short',
+        description: 'Password must be at least 6 characters.',
         variant: 'destructive',
       });
-    } finally {
       setIsLoading(false);
+      return;
     }
+
+    const { error } = await signup(name, email, password);
+
+    if (error) {
+      let message = 'Something went wrong. Please try again.';
+      if (error.message.includes('already registered')) {
+        message = 'This email is already registered. Please sign in instead.';
+      } else if (error.message) {
+        message = error.message;
+      }
+      
+      toast({
+        title: 'Signup failed',
+        description: message,
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    toast({
+      title: 'Account created!',
+      description: 'Welcome to CloudVault. Redirecting to dashboard...',
+    });
+    
+    setIsLoading(false);
   };
 
   return (
@@ -107,8 +132,10 @@ const Signup = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-11 py-6 rounded-xl border-border focus:ring-2 focus:ring-primary/20"
                   required
+                  minLength={6}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
             </div>
 
             <Button

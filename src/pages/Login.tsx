@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
@@ -12,30 +12,38 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuthStore();
+  const { login, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      await login(email, password);
+    const { error } = await login(email, password);
+
+    if (error) {
       toast({
-        title: 'Welcome back!',
-        description: 'Redirecting to your dashboard...',
-      });
-      setTimeout(() => navigate('/dashboard'), 1000);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Invalid credentials. Please try again.',
+        title: 'Login failed',
+        description: error.message || 'Invalid credentials. Please try again.',
         variant: 'destructive',
       });
-    } finally {
       setIsLoading(false);
+      return;
     }
+
+    toast({
+      title: 'Welcome back!',
+      description: 'Redirecting to your dashboard...',
+    });
+    
+    setIsLoading(false);
   };
 
   return (
@@ -93,6 +101,7 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-11 py-6 rounded-xl border-border focus:ring-2 focus:ring-primary/20"
                   required
+                  minLength={6}
                 />
               </div>
             </div>

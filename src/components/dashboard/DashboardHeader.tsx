@@ -19,7 +19,7 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader = ({ onUploadClick }: DashboardHeaderProps) => {
-  const { user, logout } = useAuthStore();
+  const { user, profile, logout } = useAuthStore();
   const { viewMode, setViewMode, searchQuery, setSearchQuery } = useFileStore();
   const navigate = useNavigate();
 
@@ -91,8 +91,8 @@ const DashboardHeader = ({ onUploadClick }: DashboardHeaderProps) => {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 p-1 pr-2 rounded-xl hover:bg-accent transition-colors">
               <div className="w-9 h-9 rounded-lg overflow-hidden bg-primary/10">
-                {user?.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt={profile.name || 'User'} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <User className="w-5 h-5 text-primary" />
@@ -104,8 +104,8 @@ const DashboardHeader = ({ onUploadClick }: DashboardHeaderProps) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <div className="px-3 py-2">
-              <p className="font-medium text-foreground">{user?.name || 'Guest User'}</p>
-              <p className="text-sm text-muted-foreground">{user?.email || 'guest@example.com'}</p>
+              <p className="font-medium text-foreground">{profile?.name || 'User'}</p>
+              <p className="text-sm text-muted-foreground">{user?.email || profile?.email || ''}</p>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
