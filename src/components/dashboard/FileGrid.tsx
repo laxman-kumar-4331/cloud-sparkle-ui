@@ -3,10 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileItem, useFileStore } from '@/store/fileStore';
 import FileCard from './FileCard';
 import FileListItem from './FileListItem';
-import { FolderOpen, Search } from 'lucide-react';
+import { FolderOpen, Search, Loader2, CloudUpload } from 'lucide-react';
 import RenameModal from './RenameModal';
 
-const FileGrid = () => {
+interface FileGridProps {
+  isLoading?: boolean;
+}
+
+const FileGrid = ({ isLoading }: FileGridProps) => {
   const { files, viewMode, currentFolder, searchQuery } = useFileStore();
   const [renameFile, setRenameFile] = useState<FileItem | null>(null);
 
@@ -61,20 +65,40 @@ const FileGrid = () => {
     }
   }, [currentFolder]);
 
-  if (filteredFiles.length === 0) {
+  if (isLoading) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="flex flex-col items-center justify-center py-20"
       >
-        <div className="w-24 h-24 rounded-3xl bg-muted flex items-center justify-center mb-6">
+        <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading files...</p>
+      </motion.div>
+    );
+  }
+
+  if (filteredFiles.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center py-20"
+      >
+        <motion.div 
+          initial={{ scale: 0.8 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 200 }}
+          className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6"
+        >
           {searchQuery ? (
-            <Search className="w-12 h-12 text-muted-foreground" />
+            <Search className="w-12 h-12 text-primary/60" />
+          ) : currentFolder === 'all' ? (
+            <CloudUpload className="w-12 h-12 text-primary/60" />
           ) : (
-            <FolderOpen className="w-12 h-12 text-muted-foreground" />
+            <FolderOpen className="w-12 h-12 text-primary/60" />
           )}
-        </div>
+        </motion.div>
         <h3 className="text-xl font-semibold text-foreground mb-2">
           {searchQuery ? 'No files found' : 'No files here yet'}
         </h3>
@@ -91,10 +115,14 @@ const FileGrid = () => {
 
   return (
     <>
-      <div className="mb-6">
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
         <h2 className="text-2xl font-bold text-foreground">{folderTitle}</h2>
         <p className="text-muted-foreground mt-1">{filteredFiles.length} files</p>
-      </div>
+      </motion.div>
 
       <AnimatePresence mode="wait">
         {viewMode === 'grid' ? (

@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, FileText, Image, Video, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useFileStore, FileItem } from '@/store/fileStore';
+import { useFileStore } from '@/store/fileStore';
+import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 
 interface UploadModalProps {
@@ -13,10 +14,12 @@ interface UploadModalProps {
 
 const UploadModal = ({ isOpen, onClose }: UploadModalProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<{ name: string; type: string; url?: string } | null>(null);
   const [fileName, setFileName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const { addFile } = useFileStore();
+  const { uploadFile } = useFileStore();
+  const { user } = useAuthStore();
   const { toast } = useToast();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -45,6 +48,7 @@ const UploadModal = ({ isOpen, onClose }: UploadModalProps) => {
       ? 'video'
       : 'document';
 
+    setSelectedFile(file);
     setFileName(file.name);
     setPreview({
       name: file.name,
@@ -61,29 +65,38 @@ const UploadModal = ({ isOpen, onClose }: UploadModalProps) => {
   };
 
   const handleUpload = async () => {
-    if (!preview) return;
+    if (!selectedFile || !user) return;
 
     setIsUploading(true);
 
-    // Simulate upload
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Create a new file with the custom name if changed
+      const fileToUpload = fileName !== selectedFile.name
+        ? new File([selectedFile], fileName, { type: selectedFile.type })
+        : selectedFile;
 
-    const newFile: FileItem = {
-      id: Date.now().toString(),
-      name: fileName,
-      type: preview.type as 'image' | 'video' | 'document',
-      size: `${(Math.random() * 10 + 1).toFixed(1)} MB`,
-      uploadDate: new Date().toISOString().split('T')[0],
-      thumbnail: preview.url,
-    };
+      await uploadFile(fileToUpload, user.id);
+      
+      toast({
+        title: 'Upload complete!',
+        description: `${fileName} has been uploaded successfully.`,
+      });
 
-    addFile(newFile);
-    toast({
-      title: 'Upload complete!',
-      description: `${fileName} has been uploaded successfully.`,
-    });
+      resetAndClose();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: 'There was an error uploading your file. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-    setIsUploading(false);
+  const resetAndClose = () => {
+    setSelectedFile(null);
     setPreview(null);
     setFileName('');
     onClose();
@@ -111,7 +124,7 @@ const UploadModal = ({ isOpen, onClose }: UploadModalProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={resetAndClose}
             className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-50"
           />
 
@@ -126,7 +139,7 @@ const UploadModal = ({ isOpen, onClose }: UploadModalProps) => {
             <div className="flex items-center justify-between p-6 border-b border-border">
               <h2 className="text-xl font-semibold text-foreground">Upload Files</h2>
               <button
-                onClick={onClose}
+                onClick={resetAndClose}
                 className="p-2 rounded-lg hover:bg-muted transition-colors"
               >
                 <X className="w-5 h-5 text-muted-foreground" />
@@ -161,7 +174,7 @@ const UploadModal = ({ isOpen, onClose }: UploadModalProps) => {
                     or click to browse from your computer
                   </p>
                   <p className="text-sm text-muted-foreground mt-4">
-                    Supports images, videos, and documents up to 100MB
+                    Supports images, videos, and documents up to 50MB
                   </p>
                 </div>
               ) : (
@@ -185,6 +198,7 @@ const UploadModal = ({ isOpen, onClose }: UploadModalProps) => {
                     </div>
                     <button
                       onClick={() => {
+                        setSelectedFile(null);
                         setPreview(null);
                         setFileName('');
                       }}
@@ -210,7 +224,7 @@ const UploadModal = ({ isOpen, onClose }: UploadModalProps) => {
 
             {/* Footer */}
             <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
-              <Button variant="ghost" onClick={onClose}>
+              <Button variant="ghost" onClick={resetAndClose}>
                 Cancel
               </Button>
               <Button

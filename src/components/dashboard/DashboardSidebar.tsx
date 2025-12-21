@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FolderOpen,
   Image,
@@ -8,31 +8,64 @@ import {
   Trash2,
   Star,
   HardDrive,
-  Settings,
+  LogOut,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useFileStore } from '@/store/fileStore';
+import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/utils';
 
 const menuItems = [
-  { icon: FolderOpen, label: 'All Files', path: '/dashboard', folder: 'all' },
-  { icon: Star, label: 'Starred', path: '/dashboard/starred', folder: 'starred' },
-  { icon: Image, label: 'Images', path: '/dashboard/images', folder: 'images' },
-  { icon: Video, label: 'Videos', path: '/dashboard/videos', folder: 'videos' },
-  { icon: FileText, label: 'Documents', path: '/dashboard/documents', folder: 'documents' },
-  { icon: Trash2, label: 'Trash', path: '/dashboard/trash', folder: 'trash' },
+  { icon: FolderOpen, label: 'All Files', folder: 'all' },
+  { icon: Star, label: 'Starred', folder: 'starred' },
+  { icon: Image, label: 'Images', folder: 'images' },
+  { icon: Video, label: 'Videos', folder: 'videos' },
+  { icon: FileText, label: 'Documents', folder: 'documents' },
+  { icon: Trash2, label: 'Trash', folder: 'trash' },
 ];
 
 const DashboardSidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const location = useLocation();
-  const { currentFolder, setCurrentFolder } = useFileStore();
+  const { currentFolder, setCurrentFolder, files } = useFileStore();
+  const { logout } = useAuthStore();
+  const navigate = useNavigate();
 
-  const storageUsed = 2.4;
-  const storageTotal = 5;
-  const storagePercentage = (storageUsed / storageTotal) * 100;
+  // Calculate storage from actual files
+  const storageInfo = useMemo(() => {
+    const totalBytes = files.reduce((acc, file) => {
+      const sizeStr = file.size;
+      const match = sizeStr.match(/^([\d.]+)\s*(Bytes|KB|MB|GB)/i);
+      if (!match) return acc;
+      
+      const value = parseFloat(match[1]);
+      const unit = match[2].toUpperCase();
+      
+      let bytes = value;
+      if (unit === 'KB') bytes = value * 1024;
+      if (unit === 'MB') bytes = value * 1024 * 1024;
+      if (unit === 'GB') bytes = value * 1024 * 1024 * 1024;
+      
+      return acc + bytes;
+    }, 0);
+    
+    const usedGB = totalBytes / (1024 * 1024 * 1024);
+    const totalGB = 5; // 5GB limit
+    const percentage = Math.min((usedGB / totalGB) * 100, 100);
+    
+    return {
+      used: usedGB < 0.01 ? (totalBytes / (1024 * 1024)).toFixed(2) + ' MB' : usedGB.toFixed(2) + ' GB',
+      total: totalGB + ' GB',
+      percentage,
+      available: ((totalGB - usedGB) / totalGB * 100).toFixed(0)
+    };
+  }, [files]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   return (
     <motion.aside
@@ -101,33 +134,34 @@ const DashboardSidebar = () => {
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-foreground">Storage</span>
             <span className="text-xs text-muted-foreground">
-              {storageUsed} GB / {storageTotal} GB
+              {storageInfo.used} / {storageInfo.total}
             </span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
-              animate={{ width: `${storagePercentage}%` }}
+              animate={{ width: `${storageInfo.percentage}%` }}
               transition={{ duration: 1, delay: 0.5 }}
               className="h-full gradient-primary rounded-full"
             />
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {((storageTotal - storageUsed) / storageTotal * 100).toFixed(0)}% of storage available
+            {storageInfo.available}% of storage available
           </p>
         </div>
       </div>
 
-      {/* Settings */}
+      {/* Logout */}
       <div className={cn('p-4 border-t border-border', isCollapsed && 'px-3')}>
         <button
+          onClick={handleLogout}
           className={cn(
-            'w-full flex items-center gap-3 px-3 py-3 rounded-xl text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors',
+            'w-full flex items-center gap-3 px-3 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors',
             isCollapsed && 'justify-center'
           )}
         >
-          <Settings className="w-5 h-5" />
-          {!isCollapsed && <span className="font-medium">Settings</span>}
+          <LogOut className="w-5 h-5" />
+          {!isCollapsed && <span className="font-medium">Logout</span>}
         </button>
       </div>
     </motion.aside>
