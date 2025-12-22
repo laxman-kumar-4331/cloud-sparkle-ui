@@ -1,48 +1,50 @@
 import { motion } from 'framer-motion';
 import { Shield, Zap, FileStack, Share2, Clock, Lock } from 'lucide-react';
+import { TiltCard } from './ui/3d-card';
+import { SpotlightCard } from './ui/spotlight';
 
 const features = [
   {
     icon: Shield,
     title: 'Bank-Level Security',
     description: 'Your files are protected with 256-bit AES encryption. We take security as seriously as the biggest banks.',
-    color: 'text-emerald-500',
-    bgColor: 'bg-emerald-50',
+    gradient: 'from-emerald-500 to-teal-500',
+    bgGlow: 'bg-emerald-500/20',
   },
   {
     icon: Zap,
     title: 'Lightning Fast',
     description: 'Upload and download at maximum speed with our global CDN network. No more waiting around.',
-    color: 'text-amber-500',
-    bgColor: 'bg-amber-50',
+    gradient: 'from-amber-500 to-orange-500',
+    bgGlow: 'bg-amber-500/20',
   },
   {
     icon: FileStack,
     title: 'All File Types',
     description: 'Documents, images, videos, audio - we support them all. Preview files directly in your browser.',
-    color: 'text-primary',
-    bgColor: 'bg-cloud-50',
+    gradient: 'from-primary to-cloud-400',
+    bgGlow: 'bg-primary/20',
   },
   {
     icon: Share2,
     title: 'Easy Sharing',
     description: 'Share files and folders with anyone using secure links. Control access with passwords and expiry dates.',
-    color: 'text-pink-500',
-    bgColor: 'bg-pink-50',
+    gradient: 'from-pink-500 to-rose-500',
+    bgGlow: 'bg-pink-500/20',
   },
   {
     icon: Clock,
     title: 'Version History',
     description: 'Never lose your work. Access previous versions of your files for up to 30 days.',
-    color: 'text-cyan-500',
-    bgColor: 'bg-cyan-50',
+    gradient: 'from-cyan-500 to-blue-500',
+    bgGlow: 'bg-cyan-500/20',
   },
   {
     icon: Lock,
     title: 'Privacy First',
     description: 'Your data is yours. We never sell or share your information. Zero-knowledge encryption available.',
-    color: 'text-violet-500',
-    bgColor: 'bg-violet-50',
+    gradient: 'from-violet-500 to-purple-500',
+    bgGlow: 'bg-violet-500/20',
   },
 ];
 
@@ -67,20 +69,36 @@ const Features = () => {
   };
 
   return (
-    <section className="py-20 sm:py-32 bg-background">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 sm:py-32 bg-background relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary/5 to-transparent rounded-full blur-3xl" />
+      </div>
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-20"
         >
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+          <motion.span
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="inline-block px-4 py-1.5 rounded-full bg-accent text-accent-foreground text-sm font-medium mb-4"
+          >
+            Features
+          </motion.span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
             Everything you need to
-            <span className="text-gradient"> manage your files</span>
+            <br />
+            <span className="bg-gradient-to-r from-primary via-cloud-400 to-primary bg-[length:200%_auto] animate-gradient-x bg-clip-text text-transparent">
+              manage your files
+            </span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
             CloudVault combines powerful features with simplicity. Store, share, and collaborate on your files from anywhere.
           </p>
         </motion.div>
@@ -93,17 +111,30 @@ const Features = () => {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
         >
           {features.map((feature, index) => (
-            <motion.div
-              key={index}
-              variants={itemVariants}
-              whileHover={{ y: -5, scale: 1.02 }}
-              className="group p-6 sm:p-8 rounded-2xl bg-card border border-border hover:border-primary/20 hover:shadow-xl transition-all duration-300"
-            >
-              <div className={`w-14 h-14 rounded-xl ${feature.bgColor} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                <feature.icon className={`w-7 h-7 ${feature.color}`} />
-              </div>
-              <h3 className="text-xl font-semibold mb-3 text-foreground">{feature.title}</h3>
-              <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+            <motion.div key={index} variants={itemVariants}>
+              <TiltCard className="h-full">
+                <SpotlightCard className="h-full p-8 transition-all duration-300 hover:shadow-2xl">
+                  <div className="relative">
+                    {/* Icon with gradient background */}
+                    <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6 shadow-lg`}>
+                      <feature.icon className="w-8 h-8 text-white" />
+                      <div className={`absolute inset-0 ${feature.bgGlow} rounded-2xl blur-xl`} />
+                    </div>
+                    
+                    <h3 className="text-xl font-bold mb-3 text-foreground">{feature.title}</h3>
+                    <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+
+                    {/* Decorative element */}
+                    <motion.div
+                      initial={{ width: 0 }}
+                      whileInView={{ width: '40%' }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
+                      className={`h-1 rounded-full bg-gradient-to-r ${feature.gradient} mt-6 opacity-50`}
+                    />
+                  </div>
+                </SpotlightCard>
+              </TiltCard>
             </motion.div>
           ))}
         </motion.div>

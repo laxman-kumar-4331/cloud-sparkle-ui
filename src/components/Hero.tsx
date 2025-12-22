@@ -1,7 +1,11 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Shield, Zap, FolderOpen, Upload, Share2, Lock } from 'lucide-react';
+import { ArrowRight, Shield, Zap, FolderOpen, Upload, Share2, Lock, Cloud, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
+import { Spotlight } from './ui/spotlight';
+import { TextGenerateEffect } from './ui/text-generate';
+import { GradientBackground, BeamBackground } from './ui/gradient-bg';
+import { HoverBorderGradient } from './ui/moving-border';
 
 const Hero = () => {
   const containerVariants = {
@@ -9,51 +13,67 @@ const Hero = () => {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2,
-        delayChildren: 0.3,
+        staggerChildren: 0.15,
+        delayChildren: 0.5,
       },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 40 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const },
+      transition: { duration: 0.8, ease: "easeOut" as const },
     },
   };
 
   const floatingIcons = [
-    { Icon: Upload, position: 'top-20 left-10 sm:left-20', delay: 0 },
-    { Icon: Share2, position: 'top-32 right-10 sm:right-32', delay: 0.2 },
-    { Icon: Lock, position: 'bottom-32 left-16 sm:left-32', delay: 0.4 },
-    { Icon: FolderOpen, position: 'bottom-20 right-16 sm:right-24', delay: 0.6 },
+    { Icon: Upload, position: 'top-24 left-8 sm:left-24', delay: 0 },
+    { Icon: Share2, position: 'top-36 right-8 sm:right-28', delay: 0.2 },
+    { Icon: Lock, position: 'bottom-40 left-12 sm:left-36', delay: 0.4 },
+    { Icon: FolderOpen, position: 'bottom-28 right-12 sm:right-20', delay: 0.6 },
+    { Icon: Cloud, position: 'top-48 left-1/4', delay: 0.8 },
+    { Icon: Sparkles, position: 'bottom-52 right-1/3', delay: 1 },
   ];
 
-  return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden gradient-hero pt-20">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-accent/30 rounded-full blur-3xl" />
-      </div>
+  const flipWords = ['Files', 'Documents', 'Photos', 'Videos', 'Data'];
 
-      {/* Floating icons */}
+  return (
+    <GradientBackground containerClassName="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+      {/* Spotlight Effect */}
+      <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" />
+      
+      {/* Beam Background */}
+      <BeamBackground className="opacity-30" />
+
+      {/* Grid Pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.02]"
+        style={{
+          backgroundImage: `radial-gradient(hsl(var(--foreground)) 1px, transparent 1px)`,
+          backgroundSize: '30px 30px',
+        }}
+      />
+
+      {/* Floating icons with enhanced animation */}
       {floatingIcons.map(({ Icon, position, delay }, index) => (
         <motion.div
           key={index}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 0.6, scale: 1 }}
-          transition={{ delay: 1 + delay, duration: 0.5 }}
+          initial={{ opacity: 0, scale: 0, rotate: -20 }}
+          animate={{ opacity: 0.7, scale: 1, rotate: 0 }}
+          transition={{ delay: 1.5 + delay, duration: 0.6, type: 'spring' }}
           className={`absolute ${position} hidden md:block`}
         >
           <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 3, repeat: Infinity, delay: delay }}
-            className="w-12 h-12 rounded-2xl bg-card shadow-lg flex items-center justify-center"
+            animate={{ 
+              y: [0, -15, 0],
+              rotate: [0, 5, -5, 0],
+            }}
+            transition={{ duration: 4, repeat: Infinity, delay: delay }}
+            className="w-14 h-14 rounded-2xl bg-card/80 backdrop-blur-sm shadow-xl border border-border/50 flex items-center justify-center group hover:scale-110 transition-transform cursor-pointer"
           >
-            <Icon className="w-6 h-6 text-primary" />
+            <Icon className="w-7 h-7 text-primary group-hover:text-primary/80 transition-colors" />
           </motion.div>
         </motion.div>
       ))}
@@ -63,88 +83,127 @@ const Hero = () => {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="text-center max-w-4xl mx-auto"
+          className="text-center max-w-5xl mx-auto"
         >
+          {/* Animated Badge */}
           <motion.div variants={itemVariants}>
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-accent-foreground text-sm font-medium mb-6">
-              <Shield className="w-4 h-4" />
-              256-bit Encryption • 99.9% Uptime
-            </span>
+            <HoverBorderGradient
+              containerClassName="mx-auto mb-8"
+              className="px-5 py-2.5 flex items-center gap-2"
+              as="div"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+              >
+                <Sparkles className="w-4 h-4 text-primary" />
+              </motion.div>
+              <span className="text-sm font-medium text-foreground">256-bit Encryption • 99.9% Uptime • Unlimited Storage</span>
+            </HoverBorderGradient>
           </motion.div>
 
-          <motion.h1
-            variants={itemVariants}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6"
-          >
-            <span className="text-foreground">Secure Cloud Storage</span>
-            <br />
-            <span className="bg-gradient-to-r from-primary to-cloud-400 bg-clip-text text-transparent">for All Your Files</span>
-          </motion.h1>
+          {/* Main Heading with Text Generate Effect */}
+          <motion.div variants={itemVariants} className="mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold tracking-tight leading-[1.1]">
+              <span className="text-foreground">Secure Cloud</span>
+              <br />
+              <span className="relative">
+                <span className="bg-gradient-to-r from-primary via-cloud-400 to-primary bg-[length:200%_auto] animate-gradient-x bg-clip-text text-transparent">
+                  Storage Solution
+                </span>
+              </span>
+            </h1>
+          </motion.div>
 
-          <motion.p
-            variants={itemVariants}
-            className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 sm:mb-10"
-          >
-            Upload, manage, and access your files anytime, anywhere. Experience lightning-fast speeds with enterprise-grade security.
-          </motion.p>
+          {/* Subtitle with Text Generate */}
+          <motion.div variants={itemVariants} className="mb-10">
+            <TextGenerateEffect
+              words="Upload, manage, and access your files anytime, anywhere. Experience lightning-fast speeds with enterprise-grade security."
+              className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto font-normal leading-relaxed"
+            />
+          </motion.div>
 
+          {/* CTA Buttons with enhanced animation */}
           <motion.div
             variants={itemVariants}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6"
           >
             <Link to="/signup">
-              <Button
-                size="lg"
-                className="gradient-primary text-primary-foreground px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-glow hover:scale-105 transition-all group"
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
               >
-                Get Started Free
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
+                <Button
+                  size="lg"
+                  className="relative overflow-hidden gradient-primary text-primary-foreground px-10 py-7 text-lg font-semibold shadow-xl hover:shadow-glow transition-all group"
+                >
+                  <span className="relative z-10 flex items-center">
+                    Get Started Free
+                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                    animate={{ x: ['-100%', '100%'] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  />
+                </Button>
+              </motion.div>
             </Link>
             <Link to="/dashboard">
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-8 py-6 text-lg font-semibold border-2 hover:bg-accent"
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
               >
-                View Demo
-              </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="px-10 py-7 text-lg font-semibold border-2 border-border hover:border-primary/50 hover:bg-accent/50 backdrop-blur-sm transition-all"
+                >
+                  View Demo
+                </Button>
+              </motion.div>
             </Link>
           </motion.div>
 
+          {/* Trust Indicators with staggered animation */}
           <motion.div
             variants={itemVariants}
-            className="mt-12 sm:mt-16 flex flex-wrap items-center justify-center gap-8 text-muted-foreground"
+            className="mt-16 sm:mt-20"
           >
-            {[
-              { Icon: Shield, label: 'Bank-level Security' },
-              { Icon: Zap, label: 'Lightning Fast' },
-              { Icon: FolderOpen, label: 'All File Types' },
-            ].map(({ Icon, label }, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <Icon className="w-5 h-5 text-primary" />
-                <span className="text-sm font-medium">{label}</span>
-              </div>
-            ))}
+            <motion.p 
+              className="text-sm text-muted-foreground mb-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 2 }}
+            >
+              Trusted by 10,000+ users worldwide
+            </motion.p>
+            <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12">
+              {[
+                { Icon: Shield, label: 'Bank-level Security', color: 'text-emerald-500' },
+                { Icon: Zap, label: 'Lightning Fast', color: 'text-amber-500' },
+                { Icon: FolderOpen, label: 'All File Types', color: 'text-primary' },
+              ].map(({ Icon, label, color }, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 2.2 + index * 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                  className="flex items-center gap-3 bg-card/50 backdrop-blur-sm px-4 py-2.5 rounded-full border border-border/50"
+                >
+                  <Icon className={`w-5 h-5 ${color}`} />
+                  <span className="text-sm font-medium text-foreground">{label}</span>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         </motion.div>
       </div>
 
-      {/* Bottom wave */}
-      <div className="absolute bottom-0 left-0 right-0">
-        <svg
-          viewBox="0 0 1440 120"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full"
-        >
-          <path
-            d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z"
-            fill="hsl(var(--background))"
-          />
-        </svg>
-      </div>
-    </section>
+      {/* Bottom gradient fade */}
+      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background to-transparent" />
+    </GradientBackground>
   );
 };
 
