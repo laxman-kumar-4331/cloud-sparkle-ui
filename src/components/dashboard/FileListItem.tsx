@@ -48,7 +48,7 @@ const FileListItem = ({ file, index, onRename }: FileListItemProps) => {
   const handleDelete = async () => {
     try {
       if (isTrash) {
-        await permanentlyDeleteFile(file.id, file.storage_path);
+        await permanentlyDeleteFile(file.id, file.cloudinary_public_id);
         toast({ title: 'File permanently deleted' });
       } else {
         await deleteFile(file.id);
