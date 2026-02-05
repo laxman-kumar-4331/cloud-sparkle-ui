@@ -48,7 +48,7 @@ const FileListItem = ({ file, index, onRename }: FileListItemProps) => {
   const handleDelete = async () => {
     try {
       if (isTrash) {
-        await permanentlyDeleteFile(file.id, file.storage_path);
+        await permanentlyDeleteFile(file.id, file.cloudinary_public_id);
         toast({ title: 'File permanently deleted' });
       } else {
         await deleteFile(file.id);
@@ -71,7 +71,7 @@ const FileListItem = ({ file, index, onRename }: FileListItemProps) => {
   const handleDownload = async () => {
     try {
       toast({ title: 'Download started', description: `Downloading ${file.name}` });
-      await downloadFile(file.storage_path, file.name);
+      await downloadFile(file.cloudinary_url, file.name);
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to download file', variant: 'destructive' });
     }
