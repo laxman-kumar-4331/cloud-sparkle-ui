@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export interface FileItem {
   id: string;
@@ -11,7 +13,8 @@ export interface FileItem {
   thumbnail?: string;
   isStarred?: boolean;
   isDeleted?: boolean;
-  storage_path: string;
+  cloudinary_public_id: string;
+  cloudinary_url: string;
   user_id: string;
 }
 
@@ -27,7 +30,7 @@ interface FileStore {
   uploadFile: (file: File, userId: string) => Promise<void>;
   deleteFile: (id: string) => Promise<void>;
   restoreFile: (id: string) => Promise<void>;
-  permanentlyDeleteFile: (id: string, storagePath: string) => Promise<void>;
+  permanentlyDeleteFile: (id: string, cloudinaryPublicId: string) => Promise<void>;
   renameFile: (id: string, newName: string) => Promise<void>;
   toggleStar: (id: string, isStarred: boolean) => Promise<void>;
   selectFile: (id: string) => void;
@@ -35,8 +38,42 @@ interface FileStore {
   setViewMode: (mode: 'grid' | 'list') => void;
   setCurrentFolder: (folder: string) => void;
   setSearchQuery: (query: string) => void;
-  downloadFile: (storagePath: string, fileName: string) => Promise<void>;
+  downloadFile: (url: string, fileName: string) => Promise<void>;
 }
+
+const callFilesFunction = async (body: Record<string, unknown>) => {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/mongodb-files`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Request failed');
+  }
+  return data;
+};
+
+const callCloudinaryFunction = async (body: Record<string, unknown>) => {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/cloudinary-upload`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Request failed');
+  }
+  return data;
+};
 
 const getFileType = (mimeType: string): 'image' | 'video' | 'document' => {
   if (mimeType.startsWith('image/')) return 'image';
@@ -64,90 +101,90 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
   fetchFiles: async (userId: string) => {
     set({ isLoading: true });
-    
-    const { data, error } = await supabase
-      .from('files')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
 
-    if (error) {
+    try {
+      const data = await callFilesFunction({ action: 'list', user_id: userId });
+
+      const files: FileItem[] = (data.files || []).map((file: Record<string, unknown>) => ({
+        id: file._id as string,
+        name: file.name as string,
+        original_name: file.original_name as string,
+        type: getFileType(file.type as string),
+        size: formatFileSize(file.size as number),
+        uploadDate: new Date(file.created_at as string).toISOString().split('T')[0],
+        isStarred: file.is_starred as boolean,
+        isDeleted: file.is_deleted as boolean,
+        cloudinary_public_id: file.cloudinary_public_id as string,
+        cloudinary_url: file.cloudinary_url as string,
+        thumbnail: file.thumbnail_url as string | undefined,
+        user_id: file.user_id as string,
+      }));
+
+      set({ files, isLoading: false });
+    } catch (error) {
       console.error('Error fetching files:', error);
       set({ isLoading: false });
-      return;
     }
-
-    const files: FileItem[] = (data || []).map((file) => {
-      let thumbnail: string | undefined;
-      
-      if (getFileType(file.type) === 'image') {
-        const { data: urlData } = supabase.storage
-          .from('user-files')
-          .getPublicUrl(file.storage_path);
-        thumbnail = urlData.publicUrl;
-      }
-
-      return {
-        id: file.id,
-        name: file.name,
-        original_name: file.original_name,
-        type: getFileType(file.type),
-        size: formatFileSize(file.size),
-        uploadDate: new Date(file.created_at).toISOString().split('T')[0],
-        isStarred: file.is_starred,
-        isDeleted: file.is_deleted,
-        storage_path: file.storage_path,
-        user_id: file.user_id,
-        thumbnail,
-      };
-    });
-
-    set({ files, isLoading: false });
   },
 
   uploadFile: async (file: File, userId: string) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const storagePath = `${userId}/${fileName}`;
-
-    // Upload to storage
-    const { error: uploadError } = await supabase.storage
-      .from('user-files')
-      .upload(storagePath, file);
-
-    if (uploadError) {
-      throw uploadError;
-    }
-
-    // Create database record
-    const { error: dbError } = await supabase.from('files').insert({
+    // Get Cloudinary signature
+    const signatureData = await callCloudinaryFunction({
+      action: 'get_signature',
       user_id: userId,
-      name: file.name,
-      original_name: file.name,
-      size: file.size,
-      type: file.type,
-      storage_path: storagePath,
     });
 
-    if (dbError) {
-      // Cleanup storage if db insert fails
-      await supabase.storage.from('user-files').remove([storagePath]);
-      throw dbError;
+    // Upload to Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', signatureData.api_key);
+    formData.append('timestamp', signatureData.timestamp);
+    formData.append('signature', signatureData.signature);
+    formData.append('folder', signatureData.folder);
+
+    const resourceType = file.type.startsWith('video/') ? 'video' : 
+                         file.type.startsWith('image/') ? 'image' : 'raw';
+
+    const cloudinaryResponse = await fetch(
+      `https://api.cloudinary.com/v1_1/${signatureData.cloud_name}/${resourceType}/upload`,
+      { method: 'POST', body: formData }
+    );
+
+    if (!cloudinaryResponse.ok) {
+      throw new Error('Cloudinary upload failed');
     }
+
+    const cloudinaryData = await cloudinaryResponse.json();
+
+    // Save file metadata to MongoDB
+    await callFilesFunction({
+      action: 'create',
+      user_id: userId,
+      file_data: {
+        name: file.name,
+        original_name: file.name,
+        size: file.size,
+        type: file.type,
+        cloudinary_public_id: cloudinaryData.public_id,
+        cloudinary_url: cloudinaryData.secure_url,
+        thumbnail_url: cloudinaryData.thumbnail_url || cloudinaryData.secure_url,
+      },
+    });
 
     // Refresh files list
     await get().fetchFiles(userId);
   },
 
   deleteFile: async (id: string) => {
-    const { error } = await supabase
-      .from('files')
-      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-      .eq('id', id);
+    const file = get().files.find((f) => f.id === id);
+    if (!file) return;
 
-    if (error) {
-      throw error;
-    }
+    await callFilesFunction({
+      action: 'update',
+      file_id: id,
+      user_id: file.user_id,
+      file_data: { is_deleted: true },
+    });
 
     set((state) => ({
       files: state.files.map((f) => (f.id === id ? { ...f, isDeleted: true } : f)),
@@ -155,36 +192,41 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   restoreFile: async (id: string) => {
-    const { error } = await supabase
-      .from('files')
-      .update({ is_deleted: false, deleted_at: null })
-      .eq('id', id);
+    const file = get().files.find((f) => f.id === id);
+    if (!file) return;
 
-    if (error) {
-      throw error;
-    }
+    await callFilesFunction({
+      action: 'update',
+      file_id: id,
+      user_id: file.user_id,
+      file_data: { is_deleted: false },
+    });
 
     set((state) => ({
       files: state.files.map((f) => (f.id === id ? { ...f, isDeleted: false } : f)),
     }));
   },
 
-  permanentlyDeleteFile: async (id: string, storagePath: string) => {
-    // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from('user-files')
-      .remove([storagePath]);
+  permanentlyDeleteFile: async (id: string, cloudinaryPublicId: string) => {
+    const file = get().files.find((f) => f.id === id);
+    if (!file) return;
 
-    if (storageError) {
-      console.error('Storage delete error:', storageError);
+    // Delete from Cloudinary
+    try {
+      await callCloudinaryFunction({
+        action: 'delete',
+        public_id: cloudinaryPublicId,
+      });
+    } catch (error) {
+      console.error('Cloudinary delete error:', error);
     }
 
-    // Delete from database
-    const { error: dbError } = await supabase.from('files').delete().eq('id', id);
-
-    if (dbError) {
-      throw dbError;
-    }
+    // Delete from MongoDB
+    await callFilesFunction({
+      action: 'delete',
+      file_id: id,
+      user_id: file.user_id,
+    });
 
     set((state) => ({
       files: state.files.filter((f) => f.id !== id),
@@ -192,14 +234,15 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   renameFile: async (id: string, newName: string) => {
-    const { error } = await supabase
-      .from('files')
-      .update({ name: newName })
-      .eq('id', id);
+    const file = get().files.find((f) => f.id === id);
+    if (!file) return;
 
-    if (error) {
-      throw error;
-    }
+    await callFilesFunction({
+      action: 'update',
+      file_id: id,
+      user_id: file.user_id,
+      new_name: newName,
+    });
 
     set((state) => ({
       files: state.files.map((f) => (f.id === id ? { ...f, name: newName } : f)),
@@ -207,38 +250,33 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   toggleStar: async (id: string, isStarred: boolean) => {
-    const { error } = await supabase
-      .from('files')
-      .update({ is_starred: !isStarred })
-      .eq('id', id);
+    const file = get().files.find((f) => f.id === id);
+    if (!file) return;
 
-    if (error) {
-      throw error;
-    }
+    await callFilesFunction({
+      action: 'update',
+      file_id: id,
+      user_id: file.user_id,
+      file_data: { is_starred: !isStarred },
+    });
 
     set((state) => ({
       files: state.files.map((f) => (f.id === id ? { ...f, isStarred: !isStarred } : f)),
     }));
   },
 
-  downloadFile: async (storagePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage
-      .from('user-files')
-      .download(storagePath);
-
-    if (error) {
-      throw error;
-    }
-
-    // Create download link
-    const url = URL.createObjectURL(data);
+  downloadFile: async (url: string, fileName: string) => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    
+    const downloadUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = downloadUrl;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(downloadUrl);
   },
 
   selectFile: (id) =>
