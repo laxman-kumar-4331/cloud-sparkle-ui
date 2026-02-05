@@ -19,7 +19,7 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader = ({ onUploadClick }: DashboardHeaderProps) => {
-  const { user, profile, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { viewMode, setViewMode, searchQuery, setSearchQuery } = useFileStore();
   const navigate = useNavigate();
 
