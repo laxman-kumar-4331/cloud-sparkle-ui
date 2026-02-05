@@ -71,7 +71,7 @@ const FileListItem = ({ file, index, onRename }: FileListItemProps) => {
   const handleDownload = async () => {
     try {
       toast({ title: 'Download started', description: `Downloading ${file.name}` });
-      await downloadFile(file.storage_path, file.name);
+      await downloadFile(file.cloudinary_url, file.name);
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to download file', variant: 'destructive' });
     }
