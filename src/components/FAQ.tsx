@@ -35,7 +35,7 @@ const faqs = [
 
 const FAQ = () => {
   return (
-    <section className="py-24 relative overflow-hidden">
+    <section id="faq" className="py-24 relative overflow-hidden">
       <div className="container mx-auto px-4 max-w-3xl relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
