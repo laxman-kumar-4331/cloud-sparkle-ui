@@ -43,7 +43,7 @@ const AnimatedCounter = ({ value, suffix }: { value: number; suffix: string }) =
 
 const Stats = () => {
   return (
-    <section className="py-20 relative overflow-hidden">
+    <section id="stats" className="py-20 relative overflow-hidden">
       {/* Gradient background */}
       <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,hsl(var(--background))_70%)]" />
