@@ -7,7 +7,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MONGODB_URI = Deno.env.get("MONGODB_URI");
+let MONGODB_URI = Deno.env.get("MONGODB_URI");
+console.log("MONGODB_URI raw value:", JSON.stringify(MONGODB_URI));
+// Ensure the URI has the correct scheme prefix
+if (MONGODB_URI && !MONGODB_URI.startsWith("mongodb://") && !MONGODB_URI.startsWith("mongodb+srv://")) {
+  MONGODB_URI = "mongodb+srv://" + MONGODB_URI;
+}
+console.log("MONGODB_URI final value:", JSON.stringify(MONGODB_URI));
 
 function hashPassword(password: string): string {
   return createHash("sha256").update(password).digest("hex");
