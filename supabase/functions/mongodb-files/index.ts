@@ -6,7 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MONGODB_URI = Deno.env.get("MONGODB_URI");
+let MONGODB_URI = Deno.env.get("MONGODB_URI");
+// Ensure the URI has the correct scheme prefix
+if (MONGODB_URI && !MONGODB_URI.startsWith("mongodb://") && !MONGODB_URI.startsWith("mongodb+srv://")) {
+  MONGODB_URI = "mongodb+srv://" + MONGODB_URI;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
