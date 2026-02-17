@@ -5,6 +5,7 @@ import FileCard from './FileCard';
 import FileListItem from './FileListItem';
 import { FolderOpen, Search, Loader2, CloudUpload } from 'lucide-react';
 import RenameModal from './RenameModal';
+import FilePreviewModal from './FilePreviewModal';
 
 interface FileGridProps {
   isLoading?: boolean;
@@ -13,11 +14,11 @@ interface FileGridProps {
 const FileGrid = ({ isLoading }: FileGridProps) => {
   const { files, viewMode, currentFolder, searchQuery } = useFileStore();
   const [renameFile, setRenameFile] = useState<FileItem | null>(null);
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   const filteredFiles = useMemo(() => {
     let result = files;
 
-    // Filter by folder/type
     switch (currentFolder) {
       case 'images':
         result = result.filter((f) => f.type === 'image' && !f.isDeleted);
@@ -38,7 +39,6 @@ const FileGrid = ({ isLoading }: FileGridProps) => {
         result = result.filter((f) => !f.isDeleted);
     }
 
-    // Filter by search query
     if (searchQuery) {
       result = result.filter((f) =>
         f.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -50,18 +50,12 @@ const FileGrid = ({ isLoading }: FileGridProps) => {
 
   const folderTitle = useMemo(() => {
     switch (currentFolder) {
-      case 'images':
-        return 'Images';
-      case 'videos':
-        return 'Videos';
-      case 'documents':
-        return 'Documents';
-      case 'starred':
-        return 'Starred';
-      case 'trash':
-        return 'Trash';
-      default:
-        return 'All Files';
+      case 'images': return 'Images';
+      case 'videos': return 'Videos';
+      case 'documents': return 'Documents';
+      case 'starred': return 'Starred';
+      case 'trash': return 'Trash';
+      default: return 'All Files';
     }
   }, [currentFolder]);
 
@@ -85,10 +79,10 @@ const FileGrid = ({ isLoading }: FileGridProps) => {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center justify-center py-20"
       >
-        <motion.div 
+        <motion.div
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 200 }}
+          transition={{ type: 'spring', stiffness: 200 }}
           className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6"
         >
           {searchQuery ? (
@@ -115,7 +109,7 @@ const FileGrid = ({ isLoading }: FileGridProps) => {
 
   return (
     <>
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-6"
@@ -134,7 +128,13 @@ const FileGrid = ({ isLoading }: FileGridProps) => {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6"
           >
             {filteredFiles.map((file, index) => (
-              <FileCard key={file.id} file={file} index={index} onRename={setRenameFile} />
+              <FileCard
+                key={file.id}
+                file={file}
+                index={index}
+                onRename={setRenameFile}
+                onPreview={setPreviewFile}
+              />
             ))}
           </motion.div>
         ) : (
@@ -153,6 +153,12 @@ const FileGrid = ({ isLoading }: FileGridProps) => {
       </AnimatePresence>
 
       <RenameModal file={renameFile} onClose={() => setRenameFile(null)} />
+      <FilePreviewModal
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+        files={filteredFiles}
+        onNavigate={setPreviewFile}
+      />
     </>
   );
 };
