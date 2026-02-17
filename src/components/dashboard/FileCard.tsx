@@ -14,9 +14,10 @@ interface FileCardProps {
   file: FileItem;
   index: number;
   onRename: (file: FileItem) => void;
+  onPreview?: (file: FileItem) => void;
 }
 
-const FileCard = ({ file, index, onRename }: FileCardProps) => {
+const FileCard = ({ file, index, onRename, onPreview }: FileCardProps) => {
   const { deleteFile, toggleStar, restoreFile, permanentlyDeleteFile, downloadFile, currentFolder } = useFileStore();
   const { toast } = useToast();
   const isTrash = currentFolder === 'trash';
@@ -92,7 +93,8 @@ const FileCard = ({ file, index, onRename }: FileCardProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
       whileHover={{ y: -4, scale: 1.02 }}
-      className="group bg-card rounded-2xl border border-border hover:border-primary/20 hover:shadow-lg transition-all duration-300 overflow-hidden"
+      onClick={() => onPreview?.(file)}
+      className="group bg-card rounded-2xl border border-border hover:border-primary/20 hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
     >
       {/* Thumbnail */}
       <div className="aspect-[4/3] bg-muted relative overflow-hidden">
